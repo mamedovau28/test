@@ -63,22 +63,28 @@ def clean_and_map_columns(df, df_mp=None):
     column_map = {
         '№': ['№', 'номер', 'no', 'n', '#'],
         'Название сайта': ['название сайта', 'сайт', 'ресурс', 'канал'],
-        'Период': ['период', 'даты', 'датаразмещения'],
-        'KPI прогноз': ['kpi', 'kpiпрогноз', 'прогнозkpi']
+        'Период': ['период', 'даты', 'дата размещения'],
+        'KPI прогноз': ['kpi', 'kpi прогноз', 'прогноз kpi']
     }
 
-    # Проверяем: достаточно ли качественные заголовки? Если нет — пробуем найти заголовки внутри тела df
-    min_hits = 2  # минимальное количество совпавших колонок, чтобы считать строку заголовком
-    if not any(any(opt in col for opt in sum(column_map.values(), [])) for col in clean_cols):
-        for i in range(min(10, len(df))):  # первые 10 строк
-            row = df.iloc[i].astype(str).str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
-            hit_count = sum(any(opt in cell for opt in sum(column_map.values(), [])) for cell in row)
-            if hit_count >= min_hits:
-                df.columns = df.iloc[i]
-                df = df.iloc[i + 1:].reset_index(drop=True)
-                original_cols = df.columns.tolist()
-                clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
-                break
+    # Автоматический поиск строки с заголовками, если текущие явно невалидны
+    min_hits = 2  # минимум совпавших заголовков
+    for i in range(min(15, len(df))):  # до 15 верхних строк
+        row = df.iloc[i].astype(str).fillna('').str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
+
+        # Подсчитываем, сколько ячеек в строке совпадают с известными вариантами заголовков
+        hit_count = sum(
+            any(opt in cell for opt in sum(column_map.values(), []))
+            for cell in row if cell  # пропускаем пустые ячейки
+        )
+
+        if hit_count >= min_hits:
+            # Эта строка — заголовок
+            df.columns = df.iloc[i]
+            df = df.iloc[i + 1:].reset_index(drop=True)
+            original_cols = df.columns.tolist()
+            clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
+            break
 
     final_mapping = {}
     budget_col = None
