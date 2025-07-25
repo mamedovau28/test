@@ -80,7 +80,10 @@ def clean_and_map_columns(df, df_mp=None):
     # --- Обновление колонок после установки заголовков
     original_cols = df.columns.tolist()
     clean_cols = [str(col).strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
-
+    st.write("Обнаружены названия колонок: ")
+    for orig, clean in zip(original_cols, clean_cols):
+        st.write(f"• {orig} → `{clean}`")
+    
     final_mapping = {}
     budget_col = None
 
