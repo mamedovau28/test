@@ -148,7 +148,7 @@ def extract_table_only(df_mp):
     header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
 
     # Пробегаемся по строкам и ищем первую, где содержатся ключевые слова
-    for idx, row in df_raw.iterrows():
+    for idx, row in df_mp.iterrows():
         text_row = [str(cell).strip().lower() for cell in row.values if pd.notna(cell)]
         matches = sum(any(keyword in cell for keyword in header_keywords) for cell in text_row)
 
