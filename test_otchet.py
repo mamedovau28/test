@@ -73,8 +73,9 @@ def clean_and_map_columns(df, df_mp=None):
             for cell in row if cell
         )
         if hit_count >= min_hits:
-            df.columns = df.iloc[i]
-            df = df.iloc[i + 1:].reset_index(drop=True)
+            header_row_index = i if i == 0 else i - 1
+            df.columns = df.iloc[header_row_index]
+            df = df.iloc[header_row_index + 1:].reset_index(drop=True)
             break
 
     # --- Обновление колонок после установки заголовков
