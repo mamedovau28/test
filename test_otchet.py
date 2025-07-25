@@ -199,7 +199,17 @@ if mp_file and metki_file:
     df_table = extract_table_only(df_mp)
     # Приводим к нужному виду, мапим колонки, ищем период
     df_ready = clean_and_map_columns(df_table, df_mp=df_mp)
-    df = df_ready[['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']].copy()
+    
+    # Перечень нужных колонок
+    required_cols = ['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']
+    missing = [col for col in required_cols if col not in df_ready.columns]
+
+    if missing:
+        st.error(f"⛔ Не удалось продолжить: отсутствуют столбцы: {', '.join(missing)}")
+        st.stop()  # Остановить выполнение
+    else:
+        df = df_ready[required_cols].copy()
+    
     df = df.replace('-', '0')
     def determine_category(row):
         if pd.isna(row['№']):
