@@ -53,7 +53,7 @@ def extract_report_period(file):
         st.error("Не удалось извлечь отчетный период из первой строки файла с метками.")
         return pd.NaT, pd.NaT
 
-def clean_and_map_columns(df, df_raw=None):
+def clean_and_map_columns(df, df_mp=None):
     original_cols = df.columns.tolist()
     clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
 
@@ -109,9 +109,9 @@ def clean_and_map_columns(df, df_raw=None):
         st.warning(f"⚠️ В файле отсутствуют необходимые столбцы: {', '.join(missing_columns)}")
 
     # Если не найден Период или в нем только пустые значения
-    if ('Период' not in df.columns or df['Период'].isna().all()) and df_raw is not None:
-        # Пробуем найти период в верхних строках df_raw
-        for row in df_raw.iloc[:10].itertuples(index=False):
+    if ('Период' not in df.columns or df['Период'].isna().all()) and df_mp is not None:
+        # Пробуем найти период в верхних строках df_mp
+        for row in df_mp.iloc[:10].itertuples(index=False):
             for cell in row:
                 if pd.isna(cell):
                     continue
