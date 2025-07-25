@@ -56,55 +56,50 @@ def extract_report_period(file):
 def clean_and_map_columns(df, df_mp=None):
     import re
 
-    original_cols = df.columns.tolist()
-    clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
-
-    # Словарь вариантов для стандартных колонок
+    # --- Словарь вариантов для стандартных колонок
     column_map = {
         '№': ['№', 'номер', 'no', 'n', '#'],
         'Название сайта': ['название сайта', 'сайт', 'ресурс', 'канал'],
-        'Период': ['период', 'даты', 'дата размещения'],
-        'KPI прогноз': ['kpi', 'kpi прогноз', 'прогноз kpi']
+        'Период': ['период', 'даты', 'датаразмещения'],
+        'KPI прогноз': ['kpi', 'kpiprogноз', 'прогнозkpi']
     }
 
-    # Автоматический поиск строки с заголовками, если текущие явно невалидны
-    min_hits = 2  # минимум совпавших заголовков
+    # --- Попытка найти корректную строку с заголовками
+    min_hits = 2
     for i in range(min(15, len(df))):
         row = df.iloc[i].astype(str).fillna('').str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
         hit_count = sum(
             any(opt in cell for opt in sum(column_map.values(), []))
             for cell in row if cell
         )
-
         if hit_count >= min_hits:
             df.columns = df.iloc[i]
             df = df.iloc[i + 1:].reset_index(drop=True)
             break
 
-    # ⚠️ Обновляем переменные после переопределения заголовков
+    # --- Обновление колонок после установки заголовков
     original_cols = df.columns.tolist()
-    clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
+    clean_cols = [str(col).strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
 
     final_mapping = {}
     budget_col = None
 
-    # Поиск бюджетного столбца с приоритетом
+    # --- Поиск бюджетного столбца
     for i, col in enumerate(clean_cols):
         original_col = original_cols[i]
         if 'ндс' in col and 'ак' in col and 'без' not in col:
             budget_col = original_col
             break
-
     if not budget_col:
         for i, col in enumerate(clean_cols):
             original_col = original_cols[i]
             if 'ндс' in col and 'без' not in col:
                 budget_col = original_col
                 break
-
     if budget_col:
         final_mapping[budget_col] = 'Общая стоимость с учетом НДС'
 
+    # --- Поиск остальных нужных колонок
     for target_name, options in column_map.items():
         for clean_option in options:
             for i, col in enumerate(clean_cols):
@@ -115,15 +110,16 @@ def clean_and_map_columns(df, df_mp=None):
             if target_name in final_mapping.values():
                 break
 
+    # --- Переименование колонок
     df = df.rename(columns=final_mapping)
 
+    # --- Проверка на отсутствие обязательных колонок
     required_columns = ['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']
     missing_columns = [col for col in required_columns if col not in df.columns]
-
     if missing_columns:
         st.warning(f"⚠️ В файле отсутствуют необходимые столбцы: {', '.join(missing_columns)}")
 
-    # Поиск периода
+    # --- Обработка отсутствующего или пустого столбца "Период"
     if ('Период' not in df.columns or df['Период'].isna().all()) and df_mp is not None:
         for row in df_mp.iloc[:10].itertuples(index=False):
             for cell in row:
@@ -148,13 +144,11 @@ def clean_and_map_columns(df, df_mp=None):
                         df['End Date'] = date
                         return df
 
-        # Если ничего не нашли
         st.warning("⚠️ Период не найден ни в таблице, ни в строках перед таблицей.")
         df['Start Date'] = pd.NaT
         df['End Date'] = pd.NaT
 
     return df
-
 def extract_table_only(df_mp):
     # Упрощенные ключевые слова, по которым можно найти заголовки таблицы
     header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
