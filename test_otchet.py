@@ -65,18 +65,23 @@ def clean_and_map_columns(df, df_mp=None):
     }
 
     # --- Попытка найти корректную строку с заголовками
-    min_hits = 2
+    # --- Поиск строки с максимальным числом совпадений по колонкам
+    max_hits = 0
+    best_row_idx = None
+
     for i in range(min(15, len(df))):
         row = df.iloc[i].astype(str).fillna('').str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
         hit_count = sum(
             any(opt in cell for opt in sum(column_map.values(), []))
             for cell in row if cell
         )
-        if hit_count >= min_hits:
-            header_row_index = i if i == 0 else i - 1
-            df.columns = df.iloc[header_row_index]
-            df = df.iloc[header_row_index + 1:].reset_index(drop=True)
-            break
+        if hit_count > max_hits:
+            max_hits = hit_count
+            best_row_idx = i
+
+    if best_row_idx is not None:
+        df.columns = df.iloc[best_row_idx]
+        df = df.iloc[best_row_idx + 1:].reset_index(drop=True)
 
     # --- Обновление колонок после установки заголовков
     original_cols = df.columns.tolist()
