@@ -186,7 +186,7 @@ if mp_file and metki_file:
     # Обрабатываем медиаплан
 
     # Приводим к нужному виду, мапим колонки, ищем период
-    df_ready = clean_and_map_columns(df_mp=df_mp)
+    df_ready = clean_and_map_columns(df_mp.copy(), df_mp=df_mp)
     
     # Перечень нужных колонок
     required_cols = ['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']
