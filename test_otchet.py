@@ -53,6 +53,96 @@ def extract_report_period(file):
         st.error("Не удалось извлечь отчетный период из первой строки файла с метками.")
         return pd.NaT, pd.NaT
 
+def clean_and_map_columns(df, df_raw=None):
+    original_cols = df.columns.tolist()
+    clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
+
+    # Словарь вариантов для стандартных колонок
+    column_map = {
+        '№': ['№', 'номер', 'no', 'n', '#'],
+        'Название сайта': ['название сайта', 'сайт', 'ресурс', 'канал'],
+        'Период': ['период', 'даты', 'датаразмещения'],
+        'KPI прогноз': ['kpi', 'kpiпрогноз', 'прогнозkpi']
+    }
+
+    final_mapping = {}
+    budget_col = None
+
+    # --- Поиск бюджетного столбца с приоритетом
+    for i, col in enumerate(clean_cols):
+        original_col = original_cols[i]
+        if 'ндс' in col and 'ак' in col and 'без' not in col:
+            budget_col = original_col
+            break
+
+    if not budget_col:
+        for i, col in enumerate(clean_cols):
+            original_col = original_cols[i]
+            if 'ндс' in col and 'без' not in col:
+                budget_col = original_col
+                break
+
+    # Добавляем бюджет в финальный маппинг, если найден
+    if budget_col:
+        final_mapping[budget_col] = 'Общая стоимость с учетом НДС'
+
+    # Поиск остальных нужных столбцов
+    for target_name, options in column_map.items():
+        for clean_option in options:
+            for i, col in enumerate(clean_cols):
+                if clean_option in col:
+                    if original_cols[i] not in final_mapping:
+                        final_mapping[original_cols[i]] = target_name
+                        break
+            if target_name in final_mapping.values():
+                break
+
+    # Применяем переименование
+    df = df.rename(columns=final_mapping)
+
+    # Проверка, все ли нужные столбцы найдены
+    required_columns = ['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']
+    missing_columns = [col for col in required_columns if col not in final_mapping.values()]
+
+    # ⚠️ Показываем предупреждение, если чего-то не хватает
+    if missing_columns:
+        st.warning(f"⚠️ В файле отсутствуют необходимые столбцы: {', '.join(missing_columns)}")
+
+    # Если не найден Период или в нем только пустые значения
+    if ('Период' not in df.columns or df['Период'].isna().all()) and df_raw is not None:
+        # Пробуем найти период в верхних строках df_raw
+        for row in df_raw.iloc[:10].itertuples(index=False):
+            for cell in row:
+                if pd.isna(cell):
+                    continue
+                text = str(cell).strip()
+
+                # Ищем диапазон дат: 01.01.2024 - 31.01.2024
+                match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})\s*[-–]\s*(\d{1,2}\.\d{1,2}\.\d{4})', text)
+                if match:
+                    start_date = pd.to_datetime(match.group(1), dayfirst=True, errors='coerce')
+                    end_date = pd.to_datetime(match.group(2), dayfirst=True, errors='coerce')
+                    if pd.notnull(start_date) and pd.notnull(end_date):
+                        df['Start Date'] = start_date
+                        df['End Date'] = end_date
+                        return df
+
+                # Ищем одиночную дату
+                match_single = re.search(r'\d{1,2}\.\d{1,2}\.\d{4}', text)
+                if match_single:
+                    date = pd.to_datetime(match_single.group(), dayfirst=True, errors='coerce')
+                    if pd.notnull(date):
+                        df['Start Date'] = date
+                        df['End Date'] = date
+                        return df
+
+        # Если ничего не нашли
+        st.warning("⚠️ Период не найден ни в таблице, ни в строках перед таблицей.")
+        df['Start Date'] = pd.NaT
+        df['End Date'] = pd.NaT
+
+    return df
+
 # Интерфейс загрузки файлов в Streamlit
 st.title("Генератор еженедельных отчётов")
 
