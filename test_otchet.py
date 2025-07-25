@@ -174,9 +174,13 @@ if mp_file and metki_file:
     df_metki = load_excel_with_custom_header(metki_file, 'UTM Source')
 
     # Обрабатываем медиаплан
-    df_table = extract_table_only(df_raw)  # или как ты обычно получаешь df только с таблицей
-    # Теперь вызываем функцию
-    df_ready = clean_and_map_columns(df_table, df_raw=df_raw)
+
+    # Выделяем таблицу
+    df_table = extract_table_only(df_mp)
+    # Приводим к нужному виду, мапим колонки, ищем период
+    df_ready = clean_and_map_columns(df_table, df_mp=df_mp)
+
+    
     df = df_mp[['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']].copy()
     df = df.replace('-', '0')
     def determine_category(row):
