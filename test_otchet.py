@@ -33,21 +33,25 @@ def load_excel_without_header(file):
     file.seek(0)
     return pd.read_excel(file, header=None)
 
-def extract_table_only(df_mp):
-    # Упрощенные ключевые слова, по которым можно найти заголовки таблицы
-    header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
-
-    for idx, row in df_mp.iterrows():
-        text_row = [str(cell).strip().lower() for cell in row.values if pd.notna(cell)]
-        matches = sum(any(keyword in cell for keyword in header_keywords) for cell in text_row)
-
-        if matches >= 2:
-            df_table = df_mp.iloc[idx:].copy()  # ✅ исправлено с df_raw → df_mp
-            df_table.columns = df_table.iloc[0]
-            df_table = df_table[1:].reset_index(drop=True)
-            return df_table
-
-    return pd.DataFrame()
+def extract_report_period(file):
+    """
+    Извлекает отчетный период из первой строки файла с метками.
+    Ожидается, что в ячейке A1 содержится строка вида:
+    "Отчет за период с YYYY-MM-DD по YYYY-MM-DD" или "Отчет за период с DD.MM.YYYY по DD.MM.YYYY"
+    """
+    df = load_excel_without_header(file)
+    header_str = str(df.iloc[0, 0])
+    # Регулярное выражение для поиска дат
+    match = re.search(r'Отчет за период с\s*([\d\.\-]+)\s*по\s*([\d\.\-]+)', header_str)
+    if match:
+        # Определяем формат даты: если в строке есть тире, то используем формат ISO, иначе – формат с точками.
+        date_format = "%Y-%m-%d" if "-" in match.group(1) else "%d.%m.%Y"
+        report_start = pd.to_datetime(match.group(1), format=date_format)
+        report_end = pd.to_datetime(match.group(2), format=date_format)
+        return report_start, report_end
+    else:
+        st.error("Не удалось извлечь отчетный период из первой строки файла с метками.")
+        return pd.NaT, pd.NaT
 
 def clean_and_map_columns(df, df_mp=None):
     import re
