@@ -179,9 +179,7 @@ if mp_file and metki_file:
     df_table = extract_table_only(df_mp)
     # Приводим к нужному виду, мапим колонки, ищем период
     df_ready = clean_and_map_columns(df_table, df_mp=df_mp)
-
-    
-    df = df_mp[['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']].copy()
+    df = df_ready[['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']].copy()
     df = df.replace('-', '0')
     def determine_category(row):
         if pd.isna(row['№']):
@@ -196,7 +194,8 @@ if mp_file and metki_file:
 
     df['Категория'] = df.apply(determine_category, axis=1).ffill()
     
-    df = df[~df['Период'].isna()]
+    if 'Период' in df.columns and not df['Период'].isna().all():
+        df = df[~df['Период'].isna()]
 
     # Функция для извлечения начальной и конечной даты
     def extract_dates(period):
