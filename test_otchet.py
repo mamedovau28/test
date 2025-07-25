@@ -54,6 +54,8 @@ def extract_report_period(file):
         return pd.NaT, pd.NaT
 
 def clean_and_map_columns(df, df_mp=None):
+    import re
+
     original_cols = df.columns.tolist()
     clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
 
@@ -65,10 +67,23 @@ def clean_and_map_columns(df, df_mp=None):
         'KPI прогноз': ['kpi', 'kpiпрогноз', 'прогнозkpi']
     }
 
+    # Проверяем: достаточно ли качественные заголовки? Если нет — пробуем найти заголовки внутри тела df
+    min_hits = 2  # минимальное количество совпавших колонок, чтобы считать строку заголовком
+    if not any(any(opt in col for opt in sum(column_map.values(), [])) for col in clean_cols):
+        for i in range(min(10, len(df))):  # первые 10 строк
+            row = df.iloc[i].astype(str).str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
+            hit_count = sum(any(opt in cell for opt in sum(column_map.values(), [])) for cell in row)
+            if hit_count >= min_hits:
+                df.columns = df.iloc[i]
+                df = df.iloc[i + 1:].reset_index(drop=True)
+                original_cols = df.columns.tolist()
+                clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
+                break
+
     final_mapping = {}
     budget_col = None
 
-    # --- Поиск бюджетного столбца с приоритетом
+    # Поиск бюджетного столбца с приоритетом
     for i, col in enumerate(clean_cols):
         original_col = original_cols[i]
         if 'ндс' in col and 'ак' in col and 'без' not in col:
@@ -82,11 +97,9 @@ def clean_and_map_columns(df, df_mp=None):
                 budget_col = original_col
                 break
 
-    # Добавляем бюджет в финальный маппинг, если найден
     if budget_col:
         final_mapping[budget_col] = 'Общая стоимость с учетом НДС'
 
-    # Поиск остальных нужных столбцов
     for target_name, options in column_map.items():
         for clean_option in options:
             for i, col in enumerate(clean_cols):
@@ -97,27 +110,22 @@ def clean_and_map_columns(df, df_mp=None):
             if target_name in final_mapping.values():
                 break
 
-    # Применяем переименование
     df = df.rename(columns=final_mapping)
 
-    # Проверка, все ли нужные столбцы найдены
     required_columns = ['№', 'Название сайта', 'Период', 'Общая стоимость с учетом НДС', 'KPI прогноз']
-    missing_columns = [col for col in required_columns if col not in final_mapping.values()]
+    missing_columns = [col for col in required_columns if col not in df.columns]
 
-    # ⚠️ Показываем предупреждение, если чего-то не хватает
     if missing_columns:
         st.warning(f"⚠️ В файле отсутствуют необходимые столбцы: {', '.join(missing_columns)}")
 
-    # Если не найден Период или в нем только пустые значения
+    # Поиск периода
     if ('Период' not in df.columns or df['Период'].isna().all()) and df_mp is not None:
-        # Пробуем найти период в верхних строках df_mp
         for row in df_mp.iloc[:10].itertuples(index=False):
             for cell in row:
                 if pd.isna(cell):
                     continue
                 text = str(cell).strip()
 
-                # Ищем диапазон дат: 01.01.2024 - 31.01.2024
                 match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})\s*[-–]\s*(\d{1,2}\.\d{1,2}\.\d{4})', text)
                 if match:
                     start_date = pd.to_datetime(match.group(1), dayfirst=True, errors='coerce')
@@ -127,7 +135,6 @@ def clean_and_map_columns(df, df_mp=None):
                         df['End Date'] = end_date
                         return df
 
-                # Ищем одиночную дату
                 match_single = re.search(r'\d{1,2}\.\d{1,2}\.\d{4}', text)
                 if match_single:
                     date = pd.to_datetime(match_single.group(), dayfirst=True, errors='coerce')
