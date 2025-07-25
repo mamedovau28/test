@@ -143,6 +143,26 @@ def clean_and_map_columns(df, df_mp=None):
 
     return df
 
+def extract_table_only(df_mp):
+    # Упрощенные ключевые слова, по которым можно найти заголовки таблицы
+    header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
+
+    # Пробегаемся по строкам и ищем первую, где содержатся ключевые слова
+    for idx, row in df_raw.iterrows():
+        text_row = [str(cell).strip().lower() for cell in row.values if pd.notna(cell)]
+        matches = sum(any(keyword in cell for keyword in header_keywords) for cell in text_row)
+
+        # Если в строке нашлось хотя бы 2 совпадения — считаем, что это заголовок таблицы
+        if matches >= 2:
+            df_table = df_raw.iloc[idx:].copy()
+            df_table.columns = df_table.iloc[0]  # устанавливаем заголовки из первой строки
+            df_table = df_table[1:]  # удаляем строку с заголовками из данных
+            df_table.reset_index(drop=True, inplace=True)
+            return df_table
+
+    # Если таблицу не нашли, возвращаем пустой DataFrame
+    return pd.DataFrame()
+
 # Интерфейс загрузки файлов в Streamlit
 st.title("Генератор еженедельных отчётов")
 
