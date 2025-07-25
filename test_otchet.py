@@ -53,6 +53,22 @@ def extract_report_period(file):
         st.error("Не удалось извлечь отчетный период из первой строки файла с метками.")
         return pd.NaT, pd.NaT
 
+def extract_table_only(df_mp):
+    # Упрощенные ключевые слова, по которым можно найти заголовки таблицы
+    header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
+
+    for idx, row in df_mp.iterrows():
+        text_row = [str(cell).strip().lower() for cell in row.values if pd.notna(cell)]
+        matches = sum(any(keyword in cell for keyword in header_keywords) for cell in text_row)
+
+        if matches >= 2:
+            df_table = df_mp.iloc[idx:].copy()  # ✅ исправлено с df_raw → df_mp
+            df_table.columns = df_table.iloc[0]
+            df_table = df_table[1:].reset_index(drop=True)
+            return df_table
+
+    return pd.DataFrame()
+
 def clean_and_map_columns(df, df_mp=None):
     import re
 
@@ -152,22 +168,6 @@ def clean_and_map_columns(df, df_mp=None):
         df['End Date'] = pd.NaT
 
     return df
-    
-def extract_table_only(df_mp):
-    # Упрощенные ключевые слова, по которым можно найти заголовки таблицы
-    header_keywords = ['№', 'название', 'сайт', 'стоимость', 'kpi', 'ресурс', 'канал']
-
-    for idx, row in df_mp.iterrows():
-        text_row = [str(cell).strip().lower() for cell in row.values if pd.notna(cell)]
-        matches = sum(any(keyword in cell for keyword in header_keywords) for cell in text_row)
-
-        if matches >= 2:
-            df_table = df_mp.iloc[idx:].copy()  # ✅ исправлено с df_raw → df_mp
-            df_table.columns = df_table.iloc[0]
-            df_table = df_table[1:].reset_index(drop=True)
-            return df_table
-
-    return pd.DataFrame()
 
 # Интерфейс загрузки файлов в Streamlit
 st.title("Генератор еженедельных отчётов")
