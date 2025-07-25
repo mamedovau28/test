@@ -69,22 +69,21 @@ def clean_and_map_columns(df, df_mp=None):
 
     # Автоматический поиск строки с заголовками, если текущие явно невалидны
     min_hits = 2  # минимум совпавших заголовков
-    for i in range(min(15, len(df))):  # до 15 верхних строк
+    for i in range(min(15, len(df))):
         row = df.iloc[i].astype(str).fillna('').str.strip().str.lower().str.replace(' ', '').str.replace('\n', '')
-
-        # Подсчитываем, сколько ячеек в строке совпадают с известными вариантами заголовков
         hit_count = sum(
             any(opt in cell for opt in sum(column_map.values(), []))
-            for cell in row if cell  # пропускаем пустые ячейки
+            for cell in row if cell
         )
 
         if hit_count >= min_hits:
-            # Эта строка — заголовок
             df.columns = df.iloc[i]
             df = df.iloc[i + 1:].reset_index(drop=True)
-            original_cols = df.columns.tolist()
-            clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
             break
+
+    # ⚠️ Обновляем переменные после переопределения заголовков
+    original_cols = df.columns.tolist()
+    clean_cols = [col.strip().lower().replace(' ', '').replace('\n', '') for col in original_cols]
 
     final_mapping = {}
     budget_col = None
